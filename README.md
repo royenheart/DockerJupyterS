@@ -6,8 +6,9 @@
 
 1. `git clone https://github.com/royenheart/DockerJupyterS.git`
 2. `cd DockerJupyterS`
-3. `sudo chmod +x ./build.sh`
-4. `./build.sh`
+3. `./build.sh`
+
+(可能需要修改一下所属用户)
 
 若构建成功，会在用户家目录下创建`pythonS`目录，存储笔记
 
@@ -23,13 +24,17 @@
 
 请检查服务器的网络设置，确保浏览器能访问服务器的7777端口
 
+3. root用户无法使用build.sh构建
+
+请不要使用root账户去开jupyter-notebook服务，如果不在乎请自行通过docker build构建
+
 ## TODO
 
 - 为jupyternotebook服务添加ssl证书，使其能用https协议进行访问
 
 ## 一些瑕疵
 
-镜像构建后太大，dockerfile构建一部分不太规范
+镜像构建后太大，得优化一下
 
 之后再慢慢更新吧（
  
