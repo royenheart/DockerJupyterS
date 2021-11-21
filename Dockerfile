@@ -1,59 +1,71 @@
-######################################################################
+#######################################################################
 # Dockerfile to build a image that can run jupyterNotebook on port 8888
 # Based on Ubuntu
 # @Author RoyenHeart 
 #######################################################################
 
-# Set the base image
+#######################
+# Stage:build conda env
+#######################
+FROM ubuntu:latest as BuildConda
 
-FROM ubuntu:latest
-LABEL author="RoyenHeart"
-
-# Using port
-
-EXPOSE 8888
-
-# Set the arg
-
+## Set args
+ARG SHELL=Anaconda3-2021.11-Linux-x86_64.sh
+ARG jupyterConfig=jupyter_notebook_config_extra
 ARG USER_NAME=djs
-ARG SH_NAME=Anaconda3-2021.11-Linux-x86_64.sh
-ARG CONDA_GET_URL=https://repo.anaconda.com/archive/$SH_NAME
-ARG CONDA_FOLDER=anaconda3
-ARG CONDA_BIN=/home/$USER_NAME/$CONDA_FOLDER/bin
+ARG uid=1001
 
-# Set the env
+## Add user with same uid with the host
+RUN useradd -s /bin/bash -u $uid -m $USER_NAME
 
-ENV PATH=$PATH:$CONDA_BIN
+## Set PATH
+ENV PATH $PATH:/home/$USER_NAME/anaconda3/bin
 
-# Make the environment
-
-## Flush and Install necessary softwares in the image
-## Then download the anaconda installation file
-## Then add user djs with default bash shell
-RUN apt-get update && apt-get install wget -y \ 
-    && useradd -s /bin/bash -m $USER_NAME 
-
-## Set the workdir
+## Set using user and working dir
+USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
-## Switch default user
-USER $USER_NAME
+## copy installation and config file from host
+COPY ${SHELL} ${jupyterConfig} ./
 
-## Download the anaconda and activate the environment
-RUN wget -q $CONDA_GET_URL \
-    && /bin/bash ./$SH_NAME -b \ 
+## install conda
+RUN /bin/bash ./$SHELL -b \
+    && rm /home/$USER_NAME/$SHELL \
     && conda init bash && exit \
     && conda create --name DJS && conda activate DJS
 
-## Download the jupyter-notebook
-## Then sets the config of jupyter-notebook
-## Then make the jupyter-notebook's working dir and delte the anaconda installation
+#####################################
+# Stage:build jupyter notebook server
+#####################################
+FROM ubuntu:latest as BuildJupyter
+
+LABEL author=RoyenHeart
+
+## Set args
+ARG USER_NAME=djs
+ARG jupyterConfig=jupyter_notebook_config_extra
+ARG uid=1001
+
+## Set path
+ENV PATH $PATH:/home/$USER_NAME/anaconda3/bin
+
+## Add user
+RUN useradd -s /bin/bash -u $uid -m $USER_NAME
+
+## Set user and working dir
+USER $USER_NAME
+WORKDIR /home/$USER_NAME
+
+## Copy downloaded file from last image
+COPY --from=BuildConda /home/$USER_NAME/ /home/$USER_NAME/
+
+## Build jupyter-notebook server
 RUN conda install -c conda-forge jupyterlab -y \
     && jupyter-notebook --generate-config \
-    && echo c.NotebookApp.ip = \'*\' >> ./.jupyter/jupyter_notebook_config.py \
-    && echo c.NotebookApp.notebook_dir = \'/home/$USER_NAME/pythonS\' >> ./.jupyter/jupyter_notebook_config.py \
-    && echo c.NotebookApp.token = \'testing\' >> ./.jupyter/jupyter_notebook_config.py \
-    && mkdir ./pythonS && rm ./$SH_NAME
+    && cat /home/$USER_NAME/$jupyterConfig >> ./.jupyter/jupyter_notebook_config.py \
+    && rm /home/$USER_NAME/$jupyterConfig
 
-## Default use jupyter-notebook
+################################################################
+## Open jupyter-notebook server when no other services specified
+################################################################
 CMD ["jupyter-notebook"]
