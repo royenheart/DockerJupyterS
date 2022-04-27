@@ -5,7 +5,7 @@
 
 ## The config of image
 
-version=v3
+version=v4
 username=$(whoami)
 buildpath=$(pwd)
 uid=$(id -u)
@@ -14,7 +14,7 @@ uid=$(id -u)
 
 if [ "${username}" = "root" ]; then
 	printf "Using root to execute server is not safe and not permitted\n"
-	exit
+	exit -1
 fi
 
 CONDA_SH_NAME=Anaconda3-2021.11-Linux-x86_64.sh
@@ -29,7 +29,7 @@ fi
 
 ## Start build
 
-isDJSbuilt=$(docker images | grep "djs")
+isDJSbuilt=$(docker images | grep "djs" | grep "${version}")
 
 if [ ! -n "${isDJSbuilt}" ]; then
 	jupyterConfig=jupyter_notebook_config_extra
@@ -39,10 +39,30 @@ if [ ! -n "${isDJSbuilt}" ]; then
 	echo c.NotebookApp.ip = "'*'" > ./${jupyterConfig}
     	echo c.NotebookApp.notebook_dir = "'/home/${username}/pythonS'" >> ./${jupyterConfig}
     	echo c.NotebookApp.token = "'${passwd}'" >> ./${jupyterConfig}
+	echo c.NotebookApp.terminado_settings = "{'shell_command': 'bash'}" >> ./${jupyterConfig}
+	echo "c.NotebookApp.certfile = u'/home/${username}/mycert.pem'" >> ./${jupyterConfig}
+	#printf "Using ssl?(y/n)\n"
+	#read isSsl
+	#if [[ ${isSsl} == "y" ]]; then
+		#printf "please insert where your ssl kert locate\n"
+		#read sslFile
+		#fileName=$(echo ${sslFile} | grep -Po "(?<=/)\w+\.pem")
+		#fileSuffix=$(echo ${fileName} | grep -Po "(?<=\.)\w+")
+		#if [[ ! -f ${sslFile} ]] || [[ ${fileSuffix} != "pem" ]]; then
+			#printf "The path you given hasn't a pem file!\n"
+			#exit -1
+		#else
+			#echo "c.NotebookApp.certfile = u'/home/${fileName}'" >> ./${jupyterConfig}
+		#fi
+	#fi
 	docker build -t djs:${version} \
 		--build-arg USER_NAME=${username} \
                 --build-arg jupyterConfig=${jupyterConfig} \
 		--build-arg uid=${uid} --no-cache .
+	if [[ $? != 0 ]]; then
+		printf "djs:${version} build failed!\n"
+		exit -1
+	fi
 	printf "djs:${version} has been successfully built\n"
 	unset ${passwd}
 	rm ./${jupyterConfig}
@@ -50,6 +70,7 @@ else
 	echo "images has been built, will soon start the Jupyter-Notebook server"
 fi
 
+printf "Check if folder ~/pythonS exit, which is to store your project files\n"
 if [ ! -d "/home/${username}/pythonS" ]; then
 	printf "There is no folder 'pythonS' in your home folder\n"
 	printf "Now create one to store your files in Jupyter-Notebook\n"
@@ -58,6 +79,13 @@ else
 	printf "Folder 'pythonS' exited in your home folder\n"
 fi
 
-## Run docker jupyter-notebook server
+## Generate docker jupyter-notebook server running scripts
 
-docker run -d --name djs -p 7777:8888 -v ~/pythonS:/home/${username}/pythonS djs:${version}
+if [[ -f ./Run.sh ]]; then
+	rm -rf ./Run.sh
+fi
+
+echo "#!/bin/bash" >> ./Run.sh
+echo "docker run -d --name djs -p 7777:8888 -v ~/pythonS:/home/${username}/pythonS djs:${version}" >> ./Run.sh
+
+chmod +x ./Run.sh

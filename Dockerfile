@@ -63,7 +63,8 @@ COPY --from=BuildConda /home/$USER_NAME/ /home/$USER_NAME/
 RUN conda install -c conda-forge jupyterlab -y \
     && jupyter-notebook --generate-config \
     && cat /home/$USER_NAME/$jupyterConfig >> ./.jupyter/jupyter_notebook_config.py \
-    && rm /home/$USER_NAME/$jupyterConfig
+    && rm /home/$USER_NAME/$jupyterConfig \
+    && openssl req -x509 -nodes -days 356 -newkey rsa:2048 -keyout mycert.pem -out mycert.pem -batch
 
 ################################################################
 ## Open jupyter-notebook server when no other services specified
