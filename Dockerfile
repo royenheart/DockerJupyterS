@@ -26,7 +26,7 @@ USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
 ## copy installation and config file from host
-COPY ${SHELL} ${jupyterConfig} ./
+COPY installers/${SHELL} ${jupyterConfig} ./
 
 ## install conda
 RUN /bin/bash ./$SHELL -b \

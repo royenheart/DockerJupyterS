@@ -17,12 +17,12 @@ if [ "${username}" = "root" ]; then
 	exit
 fi
 
-CONDA_SH_NAME=Anaconda3-2021.11-Linux-x86_64.sh
+CONDA_SH_NAME=Anaconda3-2022.05-Linux-x86_64.sh
 CONDA_GET_URL=https://repo.anaconda.com/archive/${CONDA_SH_NAME}
 
-if [ ! -f "${buildpath}/${CONDA_SH_NAME}" ]; then
+if [ ! -f "${buildpath}/installers/${CONDA_SH_NAME}" ]; then
 	printf "The image needs the conda installation, now download it\n"
-	wget ${CONDA_GET_URL}
+	mkdir -p ${buildpath}/installers && cd installers && wget -c ${CONDA_GET_URL}
 else
 	printf "The conda installation has been downloaded\n"
 fi
@@ -39,7 +39,9 @@ if [ ! -n "${isDJSbuilt}" ]; then
 	echo c.NotebookApp.ip = "'*'" > ./${jupyterConfig}
     	echo c.NotebookApp.notebook_dir = "'/home/${username}/pythonS'" >> ./${jupyterConfig}
     	echo c.NotebookApp.token = "'${passwd}'" >> ./${jupyterConfig}
+	echo c.NotebookApp.allow_origin = "'*'" >> ./${jupyterConfig}
 	docker build -t djs:${version} \
+		--build-arg SHELL=${CONDA_SH_NAME} \
 		--build-arg USER_NAME=${username} \
                 --build-arg jupyterConfig=${jupyterConfig} \
 		--build-arg uid=${uid} --no-cache .
@@ -47,6 +49,7 @@ if [ ! -n "${isDJSbuilt}" ]; then
 	unset ${passwd}
 	rm ./${jupyterConfig}
 else
+	./dockerMng/delNoneImg.sh
 	echo "images has been built, will soon start the Jupyter-Notebook server"
 fi
 
